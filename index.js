@@ -147,6 +147,8 @@ app.get('/', (req, res) => {
             <p>Minecraft server bot &middot; Live status</p>
           </header>
 
+          <a href="/candy-crush" style="display:block;text-align:center;text-decoration:none;margin-bottom:16px;padding:14px;border-radius:12px;font-weight:700;color:#fff;background:linear-gradient(90deg,#ff4d6d,#b5179e);box-shadow:0 8px 24px rgba(181,23,158,.35)">🍬 Play Candy Crush — Neon Edition</a>
+
           <section
             id="status-section"
             role="status"
@@ -264,6 +266,12 @@ app.get('/', (req, res) => {
     </html>
   `);
 });
+
+// Candy Crush — Neon Edition game
+app.get("/candy-crush", (req, res) => {
+  res.sendFile(require("path").join(__dirname, "public", "candy-crush.html"));
+});
+
 app.get("/tutorial", (req, res) => {
   res.send(`
     <!DOCTYPE html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Candy Crush — Neon Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --c1:#ff4d6d; --c2:#ffb703; --c3:#06d6a0; --c4:#4cc9f0; --c5:#b5179e; --c6:#8338ec;
+    --bg1:#1a1033; --bg2:#2d1b54; --bg3:#0f0a23;
+    --panel:rgba(255,255,255,.06); --panel-border:rgba(255,255,255,.12);
+    --ink:#f4f1ff; --muted:#a99fd4;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Outfit',system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(1200px 800px at 20% 10%,#3a1d6e 0%,transparent 55%),
+               radial-gradient(1000px 700px at 85% 90%,#5b247a 0%,transparent 50%),
+               linear-gradient(160deg,var(--bg1),var(--bg3));
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:18px 14px 30px;overflow-x:hidden;position:relative;
+  }
+  /* floating blobs */
+  .blob{position:fixed;border-radius:50%;filter:blur(60px);opacity:.35;z-index:0;pointer-events:none;animation:float 14s ease-in-out infinite}
+  .b1{width:340px;height:340px;background:#ff4d6d;top:-80px;left:-60px}
+  .b2{width:300px;height:300px;background:#4cc9f0;bottom:-70px;right:-50px;animation-delay:-5s}
+  .b3{width:260px;height:260px;background:#8338ec;top:40%;left:60%;animation-delay:-9s}
+  @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-30px)}}
+
+  .wrap{position:relative;z-index:1;width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  header{text-align:center}
+  header h1{font-family:'Baloo 2';font-weight:800;font-size:34px;margin:0;letter-spacing:.5px;
+    background:linear-gradient(90deg,#ff4d6d,#ffb703,#06d6a0,#4cc9f0,#b5179e);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 30px rgba(180,120,255,.4)}
+  header p{margin:4px 0 0;color:var(--muted);font-size:13px;font-weight:500}
+
+  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+  .stat{background:var(--panel);border:1px solid var(--panel-border);border-radius:16px;padding:10px 12px;text-align:center;backdrop-filter:blur(10px)}
+  .stat .k{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
+  .stat .v{font-family:'Baloo 2';font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}
+  .stat.score .v{color:#ffb703}
+  .stat.moves .v{color:#4cc9f0}
+  .stat.level .v{color:#06d6a0}
+
+  .progress{width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
+  .progress > i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,#06d6a0,#4cc9f0,#b5179e);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+
+  .board-frame{position:relative;padding:12px;border-radius:24px;
+    background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));
+    border:1px solid var(--panel-border);box-shadow:0 24px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.15)}
+  #board{position:relative;touch-action:none}
+  .cell{position:absolute;border-radius:14px;background:rgba(0,0,0,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+
+  .candy{position:absolute;display:flex;align-items:center;justify-content:center;
+    transition:left .26s cubic-bezier(.2,.8,.2,1),top .34s cubic-bezier(.34,1.2,.4,1),transform .18s,opacity .2s;
+    cursor:pointer;will-change:transform,left,top}
+  .candy .gem{width:80%;height:80%;border-radius:30%;position:relative;
+    box-shadow:0 6px 14px rgba(0,0,0,.35),inset 0 2px 6px rgba(255,255,255,.5),inset 0 -6px 12px rgba(0,0,0,.25);
+    transition:transform .15s}
+  .candy:hover .gem{transform:scale(1.06)}
+  .candy.sel .gem{transform:scale(1.12);box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.6),inset 0 2px 6px rgba(255,255,255,.5)}
+  .candy.pop{opacity:0;transform:scale(0);transition:transform .22s,opacity .22s}
+  .candy.spawn{opacity:0;transform:scale(.4)}
+  .candy.hint .gem{animation:hint 1s ease-in-out infinite}
+  @keyframes hint{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+  .g1 .gem{background:radial-gradient(circle at 32% 28%,#ff8fa3,var(--c1) 70%)}
+  .g2 .gem{background:radial-gradient(circle at 32% 28%,#ffe08a,var(--c2) 70%)}
+  .g3 .gem{background:radial-gradient(circle at 32% 28%,#7fffd4,var(--c3) 70%)}
+  .g4 .gem{background:radial-gradient(circle at 32% 28%,#b8ecff,var(--c4) 70%)}
+  .g5 .gem{background:radial-gradient(circle at 32% 28%,#e08bff,var(--c5) 70%)}
+  .g6 .gem{background:radial-gradient(circle at 32% 28%,#c79bff,var(--c6) 70%)}
+  /* shine */
+  .candy .gem::after{content:"";position:absolute;top:14%;left:18%;width:38%;height:26%;border-radius:50%;
+    background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));filter:blur(1px);opacity:.8}
+
+  .spark{position:absolute;border-radius:50%;pointer-events:none;z-index:5}
+
+  .controls{display:flex;gap:10px;width:100%}
+  .btn{flex:1;font-family:'Baloo 2';font-weight:700;font-size:15px;border:none;border-radius:14px;
+    padding:12px 16px;cursor:pointer;color:#fff;transition:transform .12s,filter .2s}
+  .btn:active{transform:scale(.96)}
+  .btn.primary{background:linear-gradient(90deg,#ff4d6d,#b5179e)}
+  .btn.ghost{background:var(--panel);border:1px solid var(--panel-border);color:var(--ink)}
+  .btn:hover{filter:brightness(1.1)}
+
+  .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-80px);
+    background:linear-gradient(90deg,#06d6a0,#4cc9f0);color:#04231a;font-family:'Baloo 2';font-weight:800;
+    padding:10px 20px;border-radius:99px;font-size:15px;z-index:50;transition:transform .35s cubic-bezier(.2,1.2,.3,1);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  .modal{position:fixed;inset:0;background:rgba(10,6,24,.7);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .modal.show{display:flex}
+  .card{width:100%;max-width:360px;border-radius:24px;padding:28px 24px;text-align:center;
+    background:linear-gradient(160deg,rgba(60,40,110,.95),rgba(30,18,60,.95));border:1px solid var(--panel-border);
+    box-shadow:0 30px 80px rgba(0,0,0,.5);animation:popin .4s cubic-bezier(.2,1.3,.3,1)}
+  @keyframes popin{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+  .card h2{font-family:'Baloo 2';font-size:30px;margin:0 0 6px}
+  .card p{color:var(--muted);margin:0 0 18px;font-size:14px}
+  .card .big{font-family:'Baloo 2';font-size:42px;font-weight:800;color:#ffb703;margin:6px 0 14px}
+
+  .back{position:fixed;top:14px;left:14px;z-index:30;font-family:'Baloo 2';font-weight:700;font-size:13px;
+    color:var(--ink);text-decoration:none;background:var(--panel);border:1px solid var(--panel-border);
+    padding:8px 14px;border-radius:99px;backdrop-filter:blur(8px)}
+  .back:hover{filter:brightness(1.2)}
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<a class="back" href="/">← Dashboard</a>
+
+<div class="wrap">
+  <header>
+    <h1>Candy Crush</h1>
+    <p>Neon Edition · match 3 or more to crush</p>
+  </header>
+
+  <div class="hud">
+    <div class="stat score"><div class="k">Score</div><div class="v" id="score">0</div></div>
+    <div class="stat moves"><div class="k">Moves</div><div class="v" id="moves">0</div></div>
+    <div class="stat level"><div class="k">Level</div><div class="v" id="level">1</div></div>
+  </div>
+
+  <div class="progress"><i id="bar"></i></div>
+
+  <div class="board-frame"><div id="board"></div></div>
+
+  <div class="controls">
+    <button class="btn ghost" id="hintBtn">💡 Hint</button>
+    <button class="btn primary" id="restartBtn">↻ New Game</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">Nice!</div>
+
+<div class="modal" id="modal"><div class="card" id="modalCard"></div></div>
+
+<script>
+(function(){
+  const COLS=8, ROWS=8, TYPES=6;
+  const boardEl=document.getElementById('board');
+  const scoreEl=document.getElementById('score'),movesEl=document.getElementById('moves'),levelEl=document.getElementById('level');
+  const barEl=document.getElementById('bar'),toastEl=document.getElementById('toast');
+  const modalEl=document.getElementById('modal'),modalCard=document.getElementById('modalCard');
+
+  let cell=58, gap=6, pad=0;
+  let grid=[];            // grid[r][c] = candy object {id,type} or null
+  let nodes=new Map();    // id -> dom element
+  let nextId=1;
+  let score=0, moves=0, level=1, target=500;
+  let selected=null, busy=false;
+
+  function resize(){
+    const maxW=Math.min(window.innerWidth-44, 480);
+    cell=Math.floor((maxW-(COLS-1)*gap)/COLS);
+    pad=0;
+    const w=COLS*cell+(COLS-1)*gap;
+    const h=ROWS*cell+(ROWS-1)*gap;
+    boardEl.style.width=w+'px';boardEl.style.height=h+'px';
+    // background cells
+    boardEl.querySelectorAll('.cell').forEach(c=>c.remove());
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      const d=document.createElement('div');d.className='cell';
+      d.style.width=cell+'px';d.style.height=cell+'px';
+      d.style.left=(c*(cell+gap))+'px';d.style.top=(r*(cell+gap))+'px';
+      boardEl.appendChild(d);
+    }
+    positionAll();
+  }
+
+  function pos(r,c){return {left:c*(cell+gap), top:r*(cell+gap)}}
+
+  function makeCandy(type){
+    return {id:nextId++, type:type};
+  }
+  function randType(){return 1+Math.floor(Math.random()*TYPES)}
+
+  function initBoard(){
+    grid=[];
+    for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++){
+      let t;
+      do{ t=randType(); }while(
+        (c>=2 && grid[r][c-1]?.type===t && grid[r][c-2]?.type===t) ||
+        (r>=2 && grid[r-1][c]?.type===t && grid[r-2][c]?.type===t)
+      );
+      grid[r][c]=makeCandy(t);
+    }}
+  }
+
+  function nodeFor(candy){
+    let el=nodes.get(candy.id);
+    if(!el){
+      el=document.createElement('div');el.className='candy g'+candy.type;
+      const g=document.createElement('div');g.className='gem';
+      el.appendChild(g);
+      el.style.width=cell+'px';el.style.height=cell+'px';
+      el.addEventListener('click',()=>onTap(el));
+      boardEl.appendChild(el);nodes.set(candy.id,el);
+    }
+    el.className='candy g'+candy.type;
+    el.style.width=cell+'px';el.style.height=cell+'px';
+    return el;
+  }
+
+  function positionAll(){
+    if(!grid||!grid.length)return;
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      const candy=grid[r][c];if(!candy)continue;
+      const el=nodeFor(candy);const p=pos(r,c);
+      el.style.left=p.left+'px';el.style.top=p.top+'px';
+    }
+  }
+
+  function findElCandy(el){
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      if(grid[r][c]&&nodes.get(grid[r][c].id)===el)return {r,c,candy:grid[r][c]};
+    }
+    return null;
+  }
+
+  function onTap(el){
+    if(busy)return;
+    const info=findElCandy(el);if(!info)return;
+    if(!selected){selected=info;el.classList.add('sel');return;}
+    if(selected.r===info.r&&selected.c===info.c){selected.el?.classList.remove('sel');selected=null;return;}
+    const dr=Math.abs(selected.r-info.r),dc=Math.abs(selected.c-info.c);
+    if(dr+dc===1){
+      const a=selected;selected=null;
+      a.el?.classList.remove('sel');
+      trySwap(a.r,a.c,info.r,info.c);
+    } else {
+      selected.el?.classList.remove('sel');selected=info;el.classList.add('sel');
+    }
+  }
+
+  async function trySwap(r1,c1,r2,c2){
+    busy=true;
+    swap(r1,c1,r2,c2);positionAll();
+    await wait(260);
+    const matches=findMatches();
+    if(matches.length){moves--;updateHud();
+      await resolve(matches);
+      checkEnd();
+    } else {
+      swap(r1,c1,r2,c2);positionAll(); // revert
+      await wait(260);
+      showToast("No match!",true);
+    }
+    busy=false;
+  }
+  function swap(r1,c1,r2,c2){const t=grid[r1][c1];grid[r1][c1]=grid[r2][c2];grid[r2][c2]=t;}
+
+  function findMatches(){
+    const m=new Set();
+    // rows
+    for(let r=0;r<ROWS;r++){let run=1;for(let c=1;c<=COLS;c++){
+      const cur=c<COLS?grid[r][c]?.type:null,prev=grid[r][c-1]?.type;
+      if(cur!==null&&cur===prev){run++;}else{if(run>=3)for(let k=0;k<run;k++)m.add((r)+'_'+(c-1-k));run=1;}
+    }}
+    // cols
+    for(let c=0;c<COLS;c++){let run=1;for(let r=1;r<=ROWS;r++){
+      const cur=r<ROWS?grid[r][c]?.type:null,prev=grid[r-1][c]?.type;
+      if(cur!==null&&cur===prev){run++;}else{if(run>=3)for(let k=0;k<run;k++)m.add((r-1-k)+'_'+c);run=1;}
+    }}
+    const arr=[];m.forEach(s=>{const[r,c]=s.split('_').map(Number);arr.push({r,c});});
+    return arr;
+  }
+
+  async function resolve(matches){
+    while(matches&&matches.length){
+      // score
+      const n=matches.length;
+      score+=n*10*(n>=5?3:n>=4?2:1);
+      updateHud();
+      // pop
+      matches.forEach(({r,c})=>{
+        const candy=grid[r][c];if(!candy)return;
+        const el=nodes.get(candy.id);if(el){el.classList.add('pop');spark(el,candy.type);}
+        grid[r][c]=null;
+      });
+      await wait(220);
+      matches.forEach(({r,c})=>{const candy=grid[r][c];}); // noop
+      // remove nodes
+      matches.forEach(({r,c})=>{}); // already nulled
+      // cleanup popped nodes
+      nodes.forEach((el,id)=>{if(el.classList.contains('pop')){el.remove();nodes.delete(id);}});
+      await applyGravity();
+      matches=findMatches();
+    }
+    updateHud();
+  }
+
+  async function applyGravity(){
+    for(let c=0;c<COLS;c++){
+      let writeR=ROWS-1;
+      for(let r=ROWS-1;r>=0;r--){
+        if(grid[r][c]){const candy=grid[r][c];grid[r][c]=null;grid[writeR][c]=candy;writeR--;}
+      }
+      // fill new above
+      let spawnR=writeR;
+      for(let r=spawnR;r>=0;r--){
+        const candy=makeCandy(randType());
+        grid[r][c]=candy;
+        const el=nodeFor(candy);const p=pos(r,c);
+        el.classList.add('spawn');
+        el.style.left=p.left+'px';
+        el.style.top=(-(cell+gap)*(spawnR-r+1))+'px';
+      }
+    }
+    // force reflow then drop
+    void boardEl.offsetWidth;
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      const candy=grid[r][c];if(!candy)continue;
+      const el=nodes.get(candy.id);const p=pos(r,c);
+      el.style.top=p.top+'px';el.classList.remove('spawn');
+    }
+    await wait(360);
+  }
+
+  function spark(el,type){
+    const colors=['', '#ff4d6d','#ffb703','#06d6a0','#4cc9f0','#b5179e','#8338ec'];
+    const rect=el.getBoundingClientRect(),brect=boardEl.getBoundingClientRect();
+    const cx=rect.left-brect.left+rect.width/2, cy=rect.top-brect.top+rect.height/2;
+    for(let i=0;i<8;i++){
+      const s=document.createElement('div');s.className='spark';
+      const sz=4+Math.random()*6;s.style.width=sz+'px';s.style.height=sz+'px';
+      s.style.background=colors[type];s.style.left=cx+'px';s.style.top=cy+'px';
+      s.style.boxShadow='0 0 8px '+colors[type];
+      boardEl.appendChild(s);
+      const ang=Math.random()*Math.PI*2,dist=20+Math.random()*40;
+      s.animate([
+        {transform:'translate(-50%,-50%) scale(1)',opacity:1},
+        {transform:`translate(calc(-50% + ${Math.cos(ang)*dist}px),calc(-50% + ${Math.sin(ang)*dist}px)) scale(0)`,opacity:0}
+      ],{duration:500+Math.random()*250,easing:'cubic-bezier(.2,.8,.2,1)'}).onfinish=()=>s.remove();
+    }
+  }
+
+  function updateHud(){
+    scoreEl.textContent=score;
+    movesEl.textContent=Math.max(0,moves);
+    levelEl.textContent=level;
+    barEl.style.width=Math.min(100,(score/target*100))+'%';
+  }
+
+  function checkEnd(){
+    if(score>=target){
+      showToast('Level '+level+' complete! 🎉');
+      setTimeout(()=>{level++;target=Math.round(target*1.6);moves+=15;updateHud();showModal('Level Up!','You reached the target. Next target: '+target);},400);
+    } else if(moves<=0){
+      setTimeout(()=>showModal('Out of moves','Final score: '+score,true),400);
+    }
+  }
+
+  function showModal(title,body,over){
+    modalCard.innerHTML=`<h2>${title}</h2><div class="big">${score}</div><p>${body}</p>
+      <button class="btn primary" id="mBtn">${over?'Play Again':'Continue'}</button>`;
+    modalEl.classList.add('show');
+    document.getElementById('mBtn').onclick=()=>{modalEl.classList.remove('show');if(over)startGame();};
+  }
+
+  let toastT;
+  function showToast(msg,neg){
+    toastEl.textContent=msg;
+    toastEl.style.background=neg?'linear-gradient(90deg,#ff4d6d,#b5179e)':'linear-gradient(90deg,#06d6a0,#4cc9f0)';
+    toastEl.style.color=neg?'#fff':'#04231a';
+    toastEl.classList.add('show');
+    clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('show'),1200);
+  }
+
+  function findHint(){
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      if(c<COLS-1){swap(r,c,r,c+1);const m=findMatches();swap(r,c,r,c+1);if(m.length)return {r,c,r2:r,c2:c+1,m};}
+      if(r<ROWS-1){swap(r,c,r+1,c);const m=findMatches();swap(r,c,r+1,c);if(m.length)return {r,c,r2:r+1,c2:c,m};}
+    }
+    return null;
+  }
+
+  document.getElementById('hintBtn').onclick=()=>{
+    if(busy)return;
+    const h=findHint();if(!h){showToast('No moves — reshuffling',true);shuffle();return;}
+    const e1=nodes.get(grid[h.r][h.c].id),e2=nodes.get(grid[h.r2][h.c2].id);
+    e1.classList.add('hint');e2.classList.add('hint');
+    setTimeout(()=>{e1.classList.remove('hint');e2.classList.remove('hint');},1400);
+  };
+
+  function shuffle(){
+    // collect types, shuffle, ensure no initial matches and at least one move
+    for(let tries=0;tries<40;tries++){
+      const types=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c])types.push(grid[r][c].type);
+      for(let i=types.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[types[i],types[j]]=[types[j],types[i]];}
+      let k=0;for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)grid[r][c].type=types[k++];
+      if(findMatches().length===0&&findHint()){positionAll();return;}
+    }
+  }
+
+  document.getElementById('restartBtn').onclick=()=>startGame();
+
+  function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+
+  function startGame(){
+    nodes.forEach(el=>el.remove());nodes.clear();
+    score=0;level=1;target=500;moves=25;selected=null;busy=false;
+    initBoard();positionAll();updateHud();
+    modalEl.classList.remove('show');
+  }
+
+  window.addEventListener('resize',resize);
+  // swipe support
+  let touchStart=null;
+  boardEl.addEventListener('touchstart',e=>{
+    if(busy)return;const t=e.target.closest('.candy');if(!t)return;
+    const info=findElCandy(t);if(!info)return;
+    touchStart={r:info.r,c:info.c,touch:e.touches[0]};
+  },{passive:true});
+  boardEl.addEventListener('touchend',e=>{
+    if(!touchStart||busy)return;const dx=e.changedTouches[0].clientX-touchStart.touch.clientX;
+    const dy=e.changedTouches[0].clientY-touchStart.touch.clientY;
+    if(Math.abs(dx)<18&&Math.abs(dy)<18){touchStart=null;return;}
+    let r2=touchStart.r,c2=touchStart.c;
+    if(Math.abs(dx)>Math.abs(dy))c2+=dx>0?1:-1;else r2+=dy>0?1:-1;
+    if(r2>=0&&r2<ROWS&&c2>=0&&c2<COLS){trySwap(touchStart.r,touchStart.c,r2,c2);}
+    touchStart=null;
+  },{passive:true});
+
+  resize();startGame();
+})();
+</script>
+</body>
+</html>
